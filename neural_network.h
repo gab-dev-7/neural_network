@@ -6,30 +6,30 @@
 #include <stdlib.h>
 #include <time.h>
 
-// Neural Network Structure
+// neural network structure
 typedef struct {
   int input_size;
   int hidden_size;
   int output_size;
 
-  // Weights and biases
+  // weights and biases
   double **w1;
   double *b1;
   double **w2;
   double *b2;
 
-  // Activations
+  // activations
   double *hidden;
   double *output;
 
-  // Gradients
+  // gradients
   double **dw1;
   double *db1;
   double **dw2;
   double *db2;
 } NeuralNetwork;
 
-// Function declarations
+// function declarations
 double sigmoid(double x);
 double sigmoid_derivative(double x);
 
@@ -41,7 +41,7 @@ double calculate_mse(NeuralNetwork *nn, double **inputs, double **targets,
                      int num_samples);
 void free_network(NeuralNetwork *nn);
 
-// Training configuration
+// training configuration
 typedef struct {
   int epochs;
   double learning_rate;
@@ -50,7 +50,7 @@ typedef struct {
   int verbose;
 } TrainingConfig;
 
-// CLI and utility functions
+// cli and utility functions
 void print_usage(const char *program_name);
 TrainingConfig parse_arguments(int argc, char *argv[]);
 void print_config(const TrainingConfig *config);

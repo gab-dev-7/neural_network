@@ -1,16 +1,17 @@
 #include "neural_network.h"
+#include <string.h>
 
-// Activation function (sigmoid)
+// activation function (sigmoid)
 double sigmoid(double x) {
     return 1.0 / (1.0 + exp(-x));
 }
 
-// Derivative of sigmoid
+// derivative of sigmoid
 double sigmoid_derivative(double x) {
     return x * (1.0 - x);
 }
 
-// Initialize neural network
+// initialize neural network
 NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) {
 
     NeuralNetwork* nn = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
@@ -23,10 +24,10 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     nn->hidden_size = hidden_size;
     nn->output_size = output_size;
 
-    // Seed random number generator
+    // seed random number generator
     srand(time(NULL));
 
-    // Allocate memory for weights and biases
+    // allocate memory for weights and biases
     nn->w1 = (double**)malloc(hidden_size * sizeof(double*));
     nn->b1 = (double*)calloc(hidden_size, sizeof(double));
     nn->w2 = (double**)malloc(output_size * sizeof(double*));
@@ -37,11 +38,11 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     nn->dw2 = (double**)malloc(output_size * sizeof(double*));
     nn->db2 = (double*)calloc(output_size, sizeof(double));
 
-    // Allocate activations
+    // allocate activations
     nn->hidden = (double*)calloc(hidden_size, sizeof(double));
     nn->output = (double*)calloc(output_size, sizeof(double));
 
-    // Check allocations
+    // check allocations
     if (!nn->w1 || !nn->b1 || !nn->w2 || !nn->b2 ||
         !nn->dw1 || !nn->db1 || !nn->dw2 || !nn->db2 ||
         !nn->hidden || !nn->output) {
@@ -50,7 +51,7 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
         exit(EXIT_FAILURE);
     }
 
-    // Initialize weights with random values
+    // initialize weights with random values
     for (int i = 0; i < hidden_size; i++) {
         nn->w1[i] = (double*)malloc(input_size * sizeof(double));
         nn->dw1[i] = (double*)calloc(input_size, sizeof(double));
@@ -80,10 +81,10 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     return nn;
 }
 
-// Forward propagation
+// forward propagation
 void forward(NeuralNetwork* nn, double* input) {
 
-    // Hidden layer calculation
+    // hidden layer calculation
     for (int i = 0; i < nn->hidden_size; i++) {
         nn->hidden[i] = 0;
         for (int j = 0; j < nn->input_size; j++) {
@@ -93,7 +94,7 @@ void forward(NeuralNetwork* nn, double* input) {
         nn->hidden[i] = sigmoid(nn->hidden[i]);
     }
 
-    // Output layer calculation
+    // output layer calculation
     for (int i = 0; i < nn->output_size; i++) {
         nn->output[i] = 0;
         for (int j = 0; j < nn->hidden_size; j++) {
@@ -104,10 +105,10 @@ void forward(NeuralNetwork* nn, double* input) {
     }
 }
 
-// Backward propagation
+// backward propagation
 void backward(NeuralNetwork* nn, double* input, double* target, double learning_rate) {
 
-    // Calculate output layer error and gradients
+    // calculate output layer error and gradients
     double* output_error = (double*)malloc(nn->output_size * sizeof(double));
     if (!output_error) {
         perror("Memory allocation failed");
@@ -117,10 +118,10 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
     for (int i = 0; i < nn->output_size; i++) {
         output_error[i] = target[i] - nn->output[i];
 
-        // Calculate output layer gradients
+        // calculate output layer gradients
         double delta_output = output_error[i] * sigmoid_derivative(nn->output[i]);
 
-        // Update output layer weights
+        // update output layer weights
         for (int j = 0; j < nn->hidden_size; j++) {
             nn->dw2[i][j] = delta_output * nn->hidden[j];
             nn->w2[i][j] += learning_rate * nn->dw2[i][j];
@@ -129,7 +130,7 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
         nn->b2[i] += learning_rate * nn->db2[i];
     }
 
-    // Calculate hidden layer error and gradients
+    // calculate hidden layer error and gradients
     for (int i = 0; i < nn->hidden_size; i++) {
         double hidden_error = 0;
         for (int j = 0; j < nn->output_size; j++) {
@@ -138,7 +139,7 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
 
         double delta_hidden = hidden_error * sigmoid_derivative(nn->hidden[i]);
 
-        // Update hidden layer weights
+        // update hidden layer weights
         for (int j = 0; j < nn->input_size; j++) {
             nn->dw1[i][j] = delta_hidden * input[j];
             nn->w1[i][j] += learning_rate * nn->dw1[i][j];
@@ -150,7 +151,7 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
     free(output_error);
 }
 
-// Calculate mean squared error
+// calculate mean squared error
 double calculate_mse(NeuralNetwork* nn, double** inputs, double** targets, int num_samples) {
     double total_error = 0;
     for (int s = 0; s < num_samples; s++) {
@@ -163,7 +164,7 @@ double calculate_mse(NeuralNetwork* nn, double** inputs, double** targets, int n
     return total_error / (num_samples * nn->output_size);
 }
 
-// Free allocated memory
+// free allocated memory
 void free_network(NeuralNetwork* nn) {
     if (!nn)
         return;
@@ -205,7 +206,7 @@ void free_network(NeuralNetwork* nn) {
     free(nn);
 }
 
-// Print progress bar
+// print progress bar
 void print_progress(int epoch, int total_epochs, double error) {
     int bar_width = 50;
     float progress = (float)epoch / total_epochs;
@@ -220,7 +221,58 @@ void print_progress(int epoch, int total_epochs, double error) {
         else
             printf(" ");
     }
-    printf("] %d%% | Epoch: %d/%d | Error: %.6f\r",
-           (int)(progress * 100), epoch, total_epochs, error);
-    fflush(stdout);
-}
+        printf("] %d%% | Epoch: %d/%d | Error: %.6f\r",
+               (int)(progress * 100), epoch, total_epochs, error);
+        fflush(stdout);
+    }
+    
+    // print usage information
+    void print_usage(const char *program_name) {
+        printf("usage: %s [options]\n", program_name);
+        printf("options:\n");
+        printf("  -e <epochs>     number of training epochs (default: 10000)\n");
+        printf("  -l <rate>       learning rate (default: 0.1)\n");
+        printf("  -h <size>       hidden layer size (default: 2)\n");
+        printf("  -b <size>       batch size (default: 1) [ignored in this implementation]\n");
+        printf("  -v              verbose mode\n");
+        printf("  -?              show this help message\n");
+    }
+    
+    // parse command line arguments
+    TrainingConfig parse_arguments(int argc, char *argv[]) {
+        TrainingConfig config;
+        // defaults
+        config.epochs = 10000;
+        config.learning_rate = 0.1;
+        config.hidden_size = 2;
+        config.batch_size = 1;
+        config.verbose = 0;
+    
+        for (int i = 1; i < argc; i++) {
+            if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
+                config.epochs = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
+                config.learning_rate = atof(argv[++i]);
+            } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
+                config.hidden_size = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+                config.batch_size = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "-v") == 0) {
+                config.verbose = 1;
+            } else if (strcmp(argv[i], "-?") == 0) {
+                print_usage(argv[0]);
+                exit(0);
+            }
+        }
+        return config;
+    }
+    
+    // print configuration
+    void print_config(const TrainingConfig *config) {
+        printf("training configuration:\n");
+        printf("  epochs: %d\n", config->epochs);
+        printf("  learning rate: %.6f\n", config->learning_rate);
+        printf("  hidden size: %d\n", config->hidden_size);
+        printf("  verbose: %s\n", config->verbose ? "yes" : "no");
+    }
+    

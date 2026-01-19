@@ -46,6 +46,8 @@ double calculate_mse(NeuralNetwork* nn, double** inputs, double** targets,
                      int num_samples);
 void free_network(NeuralNetwork* nn);
 
+double gradient_check(NeuralNetwork* nn, double* input, double* target, double epsilon);
+
 // training configuration
 typedef struct {
     int epochs;
@@ -56,6 +58,7 @@ typedef struct {
     double validation_split;
     int patience;
     double momentum;
+    int gradient_check;
 } TrainingConfig;
 
 // cli and utility functions

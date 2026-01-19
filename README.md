@@ -92,19 +92,6 @@ final results:
   test accuracy: 97.50%
 ```
 
-## Common Examples
-
-```bash
-# Quick test with gradient checking
-./nn -d xor -g -v
-
-# Larger network for harder problems
-./nn -d circle_enhanced -h 32 -b 128 -v
-
-# Try different activations
-./nn -d sine -ha tanh -oa linear -v
-```
-
 ## How It Works
 
 1. **Forward pass**: Input → hidden layer → output layer
@@ -112,13 +99,6 @@ final results:
 3. **Backward pass**: Compute gradients using chain rule
 4. **Update weights**: Adjust weights using gradients
 5. **Repeat**: Process all training data for multiple epochs
-
-## Project Structure
-
-- `neural_network.c/h` - Core network implementation
-- `dataset.c/h` - Data generation and handling
-- `main.c` - Command line interface and training loop
-- `Makefile` - Build automation
 
 ---
 

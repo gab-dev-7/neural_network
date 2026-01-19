@@ -36,7 +36,7 @@ typedef struct {
 
 // function declarations
 double sigmoid(double x);
-double sigmoid_derivative(double x);
+double sigmoid_derivative_from_output(double x);
 
 NeuralNetwork* create_network(int input_size, int hidden_size, int output_size);
 void forward(NeuralNetwork* nn, double* input);

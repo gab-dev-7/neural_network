@@ -13,9 +13,8 @@ double sigmoid(double x) {
 }
 
 // derivative of sigmoid
-double sigmoid_derivative(double x) {
-    double s = sigmoid(x);
-    return s * (1.0 - s);
+double sigmoid_derivative_from_output(double output) {
+    return output * (1.0 - output);
 }
 
 // initialize neural network
@@ -128,7 +127,7 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
         output_error[i] = target[i] - nn->output[i];
 
         // calculate output layer gradients
-        double delta_output = output_error[i] * sigmoid_derivative(nn->output[i]);
+        double delta_output = output_error[i] * sigmoid_derivative_from_output(nn->output[i]);
 
         // update output layer weights
         for (int j = 0; j < nn->hidden_size; j++) {
@@ -146,7 +145,7 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
             hidden_error += output_error[j] * nn->w2[j][i];
         }
 
-        double delta_hidden = hidden_error * sigmoid_derivative(nn->hidden[i]);
+        double delta_hidden = hidden_error * sigmoid_derivative_from_output(nn->hidden[i]);
 
         // update hidden layer weights
         for (int j = 0; j < nn->input_size; j++) {

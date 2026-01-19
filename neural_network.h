@@ -55,6 +55,7 @@ typedef struct {
     int verbose;
     double validation_split;
     int patience;
+    double momentum;
 } TrainingConfig;
 
 // cli and utility functions

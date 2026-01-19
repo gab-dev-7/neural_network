@@ -22,7 +22,7 @@ typedef struct {
     double* hidden;
     double* output;
 
-    // gradients
+    // gradients (accumulated over batch)
     double** dw1;
     double* db1;
     double** dw2;
@@ -40,12 +40,17 @@ double sigmoid_derivative_from_output(double x);
 
 NeuralNetwork* create_network(int input_size, int hidden_size, int output_size);
 void forward(NeuralNetwork* nn, double* input);
-void backward(NeuralNetwork* nn, double* input, double* target,
-              double learning_rate);
-double calculate_mse(NeuralNetwork* nn, double** inputs, double** targets,
-                     int num_samples);
-void free_network(NeuralNetwork* nn);
 
+// batch processing functions
+void backward_accumulate(NeuralNetwork* nn, double* input, double* target);
+void update_weights(NeuralNetwork* nn, double learning_rate, int batch_size);
+void reset_gradients(NeuralNetwork* nn);
+
+// keep old backward for compatibility
+void backward(NeuralNetwork* nn, double* input, double* target, double learning_rate);
+
+double calculate_mse(NeuralNetwork* nn, double** inputs, double** targets, int num_samples);
+void free_network(NeuralNetwork* nn);
 double gradient_check(NeuralNetwork* nn, double* input, double* target, double epsilon);
 
 // training configuration
@@ -59,6 +64,7 @@ typedef struct {
     int patience;
     double momentum;
     int gradient_check;
+    int shuffle;
 } TrainingConfig;
 
 // cli and utility functions
@@ -66,5 +72,8 @@ void print_usage(const char* program_name);
 TrainingConfig parse_arguments(int argc, char* argv[]);
 void print_config(const TrainingConfig* config);
 void print_progress(int epoch, int total_epochs, double error);
+
+// batch processing
+void shuffle_data(double** inputs, double** targets, int num_samples, int input_size, int output_size);
 
 #endif

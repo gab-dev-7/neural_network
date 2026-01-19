@@ -236,6 +236,161 @@ void free_network(NeuralNetwork* nn) {
     free(nn);
 }
 
+// NEW: Gradient checking function
+double gradient_check(NeuralNetwork* nn, double* input, double* target, double epsilon) {
+    double max_diff = 0.0;
+    double tolerance = 1e-7;
+
+    printf("\n=== Gradient Checking ===\n");
+
+    // Check w1 gradients
+    printf("Checking w1 gradients...\n");
+    for (int i = 0; i < nn->hidden_size; i++) {
+        for (int j = 0; j < nn->input_size; j++) {
+            // Save original weight
+            double original = nn->w1[i][j];
+
+            // Compute cost with w1[i][j] + epsilon
+            nn->w1[i][j] = original + epsilon;
+            forward(nn, input);
+            double cost_plus = 0;
+            for (int k = 0; k < nn->output_size; k++) {
+                double error = target[k] - nn->output[k];
+                cost_plus += 0.5 * error * error;
+            }
+
+            // Compute cost with w1[i][j] - epsilon
+            nn->w1[i][j] = original - epsilon;
+            forward(nn, input);
+            double cost_minus = 0;
+            for (int k = 0; k < nn->output_size; k++) {
+                double error = target[k] - nn->output[k];
+                cost_minus += 0.5 * error * error;
+            }
+
+            // Numerical gradient
+            double numerical_gradient = (cost_plus - cost_minus) / (2 * epsilon);
+
+            // Restore original weight
+            nn->w1[i][j] = original;
+
+            // Do a forward and backward to get analytical gradient
+            forward(nn, input);
+
+            // We need to call backward but without momentum for clean comparison
+            // Temporarily disable momentum
+            double saved_momentum = nn->momentum;
+            nn->momentum = 0.0;
+
+            // Clear gradients first
+            for (int k = 0; k < nn->hidden_size; k++) {
+                for (int l = 0; l < nn->input_size; l++) {
+                    nn->dw1[k][l] = 0;
+                }
+            }
+
+            // Calculate analytical gradient
+            double* output_error = malloc(nn->output_size * sizeof(double));
+            for (int k = 0; k < nn->output_size; k++) {
+                output_error[k] = target[k] - nn->output[k];
+                double delta_output = output_error[k] * sigmoid_derivative_from_output(nn->output[k]);
+
+                for (int l = 0; l < nn->hidden_size; l++) {
+                    nn->dw2[k][l] = delta_output * nn->hidden[l];
+                }
+            }
+
+            // Calculate hidden layer error
+            for (int k = 0; k < nn->hidden_size; k++) {
+                double hidden_error = 0;
+                for (int l = 0; l < nn->output_size; l++) {
+                    hidden_error += output_error[l] * nn->w2[l][k];
+                }
+                double delta_hidden = hidden_error * sigmoid_derivative_from_output(nn->hidden[k]);
+
+                for (int l = 0; l < nn->input_size; l++) {
+                    nn->dw1[k][l] = delta_hidden * input[l];
+                }
+            }
+            free(output_error);
+
+            double analytical_gradient = nn->dw1[i][j];
+
+            // Restore momentum
+            nn->momentum = saved_momentum;
+
+            // Calculate relative difference
+            double diff = fabs(numerical_gradient - analytical_gradient);
+            double relative_diff = diff / (fabs(numerical_gradient) + fabs(analytical_gradient) + 1e-10);
+
+            if (relative_diff > max_diff) {
+                max_diff = relative_diff;
+            }
+
+            if (relative_diff > tolerance) {
+                printf("  w1[%d][%d]: numerical=%.10e, analytical=%.10e, diff=%.10e, relative=%.10e\n",
+                       i, j, numerical_gradient, analytical_gradient, diff, relative_diff);
+            }
+        }
+    }
+
+    // Check b1 gradients
+    printf("Checking b1 gradients...\n");
+    for (int i = 0; i < nn->hidden_size; i++) {
+        // Save original bias
+        double original = nn->b1[i];
+
+        // Compute cost with b1[i] + epsilon
+        nn->b1[i] = original + epsilon;
+        forward(nn, input);
+        double cost_plus = 0;
+        for (int k = 0; k < nn->output_size; k++) {
+            double error = target[k] - nn->output[k];
+            cost_plus += 0.5 * error * error;
+        }
+
+        // Compute cost with b1[i] - epsilon
+        nn->b1[i] = original - epsilon;
+        forward(nn, input);
+        double cost_minus = 0;
+        for (int k = 0; k < nn->output_size; k++) {
+            double error = target[k] - nn->output[k];
+            cost_minus += 0.5 * error * error;
+        }
+
+        // Numerical gradient
+        double numerical_gradient = (cost_plus - cost_minus) / (2 * epsilon);
+
+        // Restore original bias
+        nn->b1[i] = original;
+
+        // Analytical gradient (we already computed it above)
+        double analytical_gradient = nn->db1[i];
+
+        // Calculate relative difference
+        double diff = fabs(numerical_gradient - analytical_gradient);
+        double relative_diff = diff / (fabs(numerical_gradient) + fabs(analytical_gradient) + 1e-10);
+
+        if (relative_diff > max_diff) {
+            max_diff = relative_diff;
+        }
+
+        if (relative_diff > tolerance) {
+            printf("  b1[%d]: numerical=%.10e, analytical=%.10e, diff=%.10e, relative=%.10e\n",
+                   i, numerical_gradient, analytical_gradient, diff, relative_diff);
+        }
+    }
+
+    printf("Maximum relative difference: %.10e\n", max_diff);
+    if (max_diff < 1e-7) {
+        printf("✓ Gradient check PASSED! (max diff < 1e-7)\n");
+    } else {
+        printf("✗ Gradient check FAILED! (max diff >= 1e-7)\n");
+    }
+
+    return max_diff;
+}
+
 // print progress bar
 void print_progress(int epoch, int total_epochs, double error) {
     int bar_width = 50;
@@ -265,6 +420,7 @@ void print_usage(const char* program_name) {
     printf("  -h <size>       hidden layer size (default: 2)\n");
     printf("  -b <size>       batch size (default: 1) [ignored in this implementation]\n");
     printf("  -m <momentum>   momentum (default: 0.0)\n");
+    printf("  -g              enable gradient checking (before training)\n"); // NEW
     printf("  -v              verbose mode\n");
     printf("  -?              show this help message\n");
 }
@@ -293,6 +449,8 @@ TrainingConfig parse_arguments(int argc, char* argv[]) {
             config.batch_size = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
             config.momentum = atof(argv[++i]);
+        } else if (strcmp(argv[i], "-g") == 0) { // NEW: gradient checking flag
+            config.gradient_check = 1;
         } else if (strcmp(argv[i], "-v") == 0) {
             config.verbose = 1;
         } else if (strcmp(argv[i], "-?") == 0) {
@@ -310,5 +468,6 @@ void print_config(const TrainingConfig* config) {
     printf("  learning rate: %.6f\n", config->learning_rate);
     printf("  hidden size: %d\n", config->hidden_size);
     printf("  momentum: %.6f\n", config->momentum);
+    printf("  gradient check: %s\n", config->gradient_check ? "yes" : "no");
     printf("  verbose: %s\n", config->verbose ? "yes" : "no");
 }

@@ -1,14 +1,21 @@
 #include "neural_network.h"
+#include <stdlib.h>
 #include <string.h>
 
-// activation function (sigmoid)
+// activation function
 double sigmoid(double x) {
-    return 1.0 / (1.0 + exp(-x));
+    if (x >= 0) {
+        return 1.0 / (1.0 + exp(-x));
+    } else {
+        double ex = exp(x);
+        return ex / (1.0 + ex);
+    }
 }
 
 // derivative of sigmoid
 double sigmoid_derivative(double x) {
-    return x * (1.0 - x);
+    double s = sigmoid(x);
+    return s * (1.0 - s);
 }
 
 // initialize neural network
@@ -61,7 +68,8 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
             exit(EXIT_FAILURE);
         }
         for (int j = 0; j < input_size; j++) {
-            nn->w1[i][j] = ((double)rand() / RAND_MAX) * 2.0 - 1.0; // [-1, 1]
+            double limit = sqrt(6.0 / (input_size + hidden_size));
+            nn->w1[i][j] = ((double)rand() / RAND_MAX) * 2 * limit - limit;
         }
     }
 
@@ -74,7 +82,8 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
             exit(EXIT_FAILURE);
         }
         for (int j = 0; j < hidden_size; j++) {
-            nn->w2[i][j] = ((double)rand() / RAND_MAX) * 2.0 - 1.0; // [-1, 1]
+            double limit2 = sqrt(6.0 / (hidden_size + output_size));
+            nn->w2[i][j] = ((double)rand() / RAND_MAX) * 2 * limit2 - limit2;
         }
     }
 
@@ -221,58 +230,57 @@ void print_progress(int epoch, int total_epochs, double error) {
         else
             printf(" ");
     }
-        printf("] %d%% | Epoch: %d/%d | Error: %.6f\r",
-               (int)(progress * 100), epoch, total_epochs, error);
-        fflush(stdout);
-    }
-    
-    // print usage information
-    void print_usage(const char *program_name) {
-        printf("usage: %s [options]\n", program_name);
-        printf("options:\n");
-        printf("  -e <epochs>     number of training epochs (default: 10000)\n");
-        printf("  -l <rate>       learning rate (default: 0.1)\n");
-        printf("  -h <size>       hidden layer size (default: 2)\n");
-        printf("  -b <size>       batch size (default: 1) [ignored in this implementation]\n");
-        printf("  -v              verbose mode\n");
-        printf("  -?              show this help message\n");
-    }
-    
-    // parse command line arguments
-    TrainingConfig parse_arguments(int argc, char *argv[]) {
-        TrainingConfig config;
-        // defaults
-        config.epochs = 10000;
-        config.learning_rate = 0.1;
-        config.hidden_size = 2;
-        config.batch_size = 1;
-        config.verbose = 0;
-    
-        for (int i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
-                config.epochs = atoi(argv[++i]);
-            } else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
-                config.learning_rate = atof(argv[++i]);
-            } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
-                config.hidden_size = atoi(argv[++i]);
-            } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
-                config.batch_size = atoi(argv[++i]);
-            } else if (strcmp(argv[i], "-v") == 0) {
-                config.verbose = 1;
-            } else if (strcmp(argv[i], "-?") == 0) {
-                print_usage(argv[0]);
-                exit(0);
-            }
+    printf("] %d%% | Epoch: %d/%d | Error: %.6f\r",
+           (int)(progress * 100), epoch, total_epochs, error);
+    fflush(stdout);
+}
+
+// print usage information
+void print_usage(const char* program_name) {
+    printf("usage: %s [options]\n", program_name);
+    printf("options:\n");
+    printf("  -e <epochs>     number of training epochs (default: 10000)\n");
+    printf("  -l <rate>       learning rate (default: 0.1)\n");
+    printf("  -h <size>       hidden layer size (default: 2)\n");
+    printf("  -b <size>       batch size (default: 1) [ignored in this implementation]\n");
+    printf("  -v              verbose mode\n");
+    printf("  -?              show this help message\n");
+}
+
+// parse command line arguments
+TrainingConfig parse_arguments(int argc, char* argv[]) {
+    TrainingConfig config;
+    // defaults
+    config.epochs = 10000;
+    config.learning_rate = 0.1;
+    config.hidden_size = 2;
+    config.batch_size = 1;
+    config.verbose = 0;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
+            config.epochs = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
+            config.learning_rate = atof(argv[++i]);
+        } else if (strcmp(argv[i], "-h") == 0 && i + 1 < argc) {
+            config.hidden_size = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+            config.batch_size = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-v") == 0) {
+            config.verbose = 1;
+        } else if (strcmp(argv[i], "-?") == 0) {
+            print_usage(argv[0]);
+            exit(0);
         }
-        return config;
     }
-    
-    // print configuration
-    void print_config(const TrainingConfig *config) {
-        printf("training configuration:\n");
-        printf("  epochs: %d\n", config->epochs);
-        printf("  learning rate: %.6f\n", config->learning_rate);
-        printf("  hidden size: %d\n", config->hidden_size);
-        printf("  verbose: %s\n", config->verbose ? "yes" : "no");
-    }
-    
+    return config;
+}
+
+// print configuration
+void print_config(const TrainingConfig* config) {
+    printf("training configuration:\n");
+    printf("  epochs: %d\n", config->epochs);
+    printf("  learning rate: %.6f\n", config->learning_rate);
+    printf("  hidden size: %d\n", config->hidden_size);
+    printf("  verbose: %s\n", config->verbose ? "yes" : "no");
+}

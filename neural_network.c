@@ -44,6 +44,11 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     nn->dw2 = (double**)malloc(output_size * sizeof(double*));
     nn->db2 = (double*)calloc(output_size, sizeof(double));
 
+    // allocate memory for momentum buffers
+    nn->prev_dw1 = (double**)malloc(hidden_size * sizeof(double*));
+    nn->prev_dw2 = (double**)malloc(output_size * sizeof(double*));
+    nn->momentum = 0.0; // default momentum
+
     // allocate activations
     nn->hidden = (double*)calloc(hidden_size, sizeof(double));
     nn->output = (double*)calloc(output_size, sizeof(double));
@@ -51,6 +56,7 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     // check allocations
     if (!nn->w1 || !nn->b1 || !nn->w2 || !nn->b2 ||
         !nn->dw1 || !nn->db1 || !nn->dw2 || !nn->db2 ||
+        !nn->prev_dw1 || !nn->prev_dw2 ||
         !nn->hidden || !nn->output) {
         perror("Memory allocation failed");
         free_network(nn);
@@ -61,7 +67,8 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     for (int i = 0; i < hidden_size; i++) {
         nn->w1[i] = (double*)malloc(input_size * sizeof(double));
         nn->dw1[i] = (double*)calloc(input_size, sizeof(double));
-        if (!nn->w1[i] || !nn->dw1[i]) {
+        nn->prev_dw1[i] = (double*)calloc(input_size, sizeof(double));
+        if (!nn->w1[i] || !nn->dw1[i] || !nn->prev_dw1[i]) {
             perror("Memory allocation failed");
             free_network(nn);
             exit(EXIT_FAILURE);
@@ -75,7 +82,8 @@ NeuralNetwork* create_network(int input_size, int hidden_size, int output_size) 
     for (int i = 0; i < output_size; i++) {
         nn->w2[i] = (double*)malloc(hidden_size * sizeof(double));
         nn->dw2[i] = (double*)calloc(hidden_size, sizeof(double));
-        if (!nn->w2[i] || !nn->dw2[i]) {
+        nn->prev_dw2[i] = (double*)calloc(hidden_size, sizeof(double));
+        if (!nn->w2[i] || !nn->dw2[i] || !nn->prev_dw2[i]) {
             perror("Memory allocation failed");
             free_network(nn);
             exit(EXIT_FAILURE);
@@ -129,13 +137,17 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
         // calculate output layer gradients
         double delta_output = output_error[i] * sigmoid_derivative_from_output(nn->output[i]);
 
-        // update output layer weights
+        // update output layer weights with momentum
         for (int j = 0; j < nn->hidden_size; j++) {
             nn->dw2[i][j] = delta_output * nn->hidden[j];
-            nn->w2[i][j] += learning_rate * nn->dw2[i][j];
+            // momentum update: current_gradient + momentum * previous_update
+            double update = learning_rate * nn->dw2[i][j] + nn->momentum * nn->prev_dw2[i][j];
+            nn->w2[i][j] += update;
+            nn->prev_dw2[i][j] = update; // store for next iteration
         }
         nn->db2[i] = delta_output;
         nn->b2[i] += learning_rate * nn->db2[i];
+        // Note: biases typically don't get momentum, but we could add if needed
     }
 
     // calculate hidden layer error and gradients
@@ -147,10 +159,12 @@ void backward(NeuralNetwork* nn, double* input, double* target, double learning_
 
         double delta_hidden = hidden_error * sigmoid_derivative_from_output(nn->hidden[i]);
 
-        // update hidden layer weights
+        // update hidden layer weights with momentum
         for (int j = 0; j < nn->input_size; j++) {
             nn->dw1[i][j] = delta_hidden * input[j];
-            nn->w1[i][j] += learning_rate * nn->dw1[i][j];
+            double update = learning_rate * nn->dw1[i][j] + nn->momentum * nn->prev_dw1[i][j];
+            nn->w1[i][j] += update;
+            nn->prev_dw1[i][j] = update; // store for next iteration
         }
         nn->db1[i] = delta_hidden;
         nn->b1[i] += learning_rate * nn->db1[i];
@@ -182,11 +196,15 @@ void free_network(NeuralNetwork* nn) {
             free(nn->w1[i]);
         if (nn->dw1)
             free(nn->dw1[i]);
+        if (nn->prev_dw1)
+            free(nn->prev_dw1[i]);
     }
     if (nn->w1)
         free(nn->w1);
     if (nn->dw1)
         free(nn->dw1);
+    if (nn->prev_dw1)
+        free(nn->prev_dw1);
     if (nn->b1)
         free(nn->b1);
     if (nn->db1)
@@ -197,11 +215,15 @@ void free_network(NeuralNetwork* nn) {
             free(nn->w2[i]);
         if (nn->dw2)
             free(nn->dw2[i]);
+        if (nn->prev_dw2)
+            free(nn->prev_dw2[i]);
     }
     if (nn->w2)
         free(nn->w2);
     if (nn->dw2)
         free(nn->dw2);
+    if (nn->prev_dw2)
+        free(nn->prev_dw2);
     if (nn->b2)
         free(nn->b2);
     if (nn->db2)
@@ -242,6 +264,7 @@ void print_usage(const char* program_name) {
     printf("  -l <rate>       learning rate (default: 0.1)\n");
     printf("  -h <size>       hidden layer size (default: 2)\n");
     printf("  -b <size>       batch size (default: 1) [ignored in this implementation]\n");
+    printf("  -m <momentum>   momentum (default: 0.0)\n");
     printf("  -v              verbose mode\n");
     printf("  -?              show this help message\n");
 }
@@ -255,6 +278,9 @@ TrainingConfig parse_arguments(int argc, char* argv[]) {
     config.hidden_size = 2;
     config.batch_size = 1;
     config.verbose = 0;
+    config.validation_split = 0.0; // Not implemented yet
+    config.patience = 10;          // Not implemented yet
+    config.momentum = 0.0;         // Default momentum
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
@@ -265,6 +291,8 @@ TrainingConfig parse_arguments(int argc, char* argv[]) {
             config.hidden_size = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
             config.batch_size = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
+            config.momentum = atof(argv[++i]);
         } else if (strcmp(argv[i], "-v") == 0) {
             config.verbose = 1;
         } else if (strcmp(argv[i], "-?") == 0) {
@@ -281,5 +309,6 @@ void print_config(const TrainingConfig* config) {
     printf("  epochs: %d\n", config->epochs);
     printf("  learning rate: %.6f\n", config->learning_rate);
     printf("  hidden size: %d\n", config->hidden_size);
+    printf("  momentum: %.6f\n", config->momentum);
     printf("  verbose: %s\n", config->verbose ? "yes" : "no");
 }

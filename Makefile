@@ -1,57 +1,28 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -g -std=c99
+CFLAGS = -Wall -Wextra -O2
 LDFLAGS = -lm
-
-TARGET = neural_network
-
-SRCS = main.c neural_network.c
-OBJS = $(SRCS:.c=.o)
+TARGET = nn
+SOURCES = main.c neural_network.c dataset.c
+OBJECTS = $(SOURCES:.c=.o)
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
+$(TARGET): $(OBJECTS)
+	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
-main.o: main.c neural_network.h
-	$(CC) $(CFLAGS) -c main.c
-
-neural_network.o: neural_network.c neural_network.h
-	$(CC) $(CFLAGS) -c neural_network.c
-
-run: $(TARGET)
-	./$(TARGET) -v
-
-test: $(TARGET)
-	./$(TARGET) -e 5000 -l 0.3 -h 8 -v
-
-debug: CFLAGS += -DDEBUG -ggdb3
-debug: clean $(TARGET)
+%.o: %.c
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
-	rm -f $(TARGET) $(OBJS) *.out
+	rm -f $(OBJECTS) $(TARGET)
 
-install: $(TARGET)
-	cp $(TARGET) /usr/local/bin/
+run: $(TARGET)
+	./$(TARGET) -e 5000 -l 0.1 -h 16 -b 64 -m 0.9 -d sine -n 1000 -v
 
-uninstall:
-	rm -f /usr/local/bin/$(TARGET)
+run-xor:
+	./$(TARGET) -e 5000 -l 0.1 -h 8 -b 32 -m 0.9 -d xor -ha relu -oa sigmoid -v
 
-dist: clean
-	mkdir -p dist/neural_network
-	cp *.c *.h Makefile README.md dist/neural_network/
-	tar -czf neural_network.tar.gz -C dist .
-	rm -rf dist
+run-circle:
+	./$(TARGET) -e 5000 -l 0.1 -h 16 -b 64 -m 0.9 -d circle -ha relu -oa sigmoid -v
 
-help:
-	@echo "Available targets:"
-	@echo "  all     - Build the program (default)"
-	@echo "  run     - Build and run with verbose mode"
-	@echo "  test    - Run with test parameters"
-	@echo "  debug   - Build with debug symbols"
-	@echo "  clean   - Remove build files"
-	@echo "  install - Install to /usr/local/bin (requires sudo)"
-	@echo "  uninstall - Uninstall from /usr/local/bin"
-	@echo "  dist    - Create distribution archive"
-	@echo "  help    - Show this help message"
-
-.PHONY: all run test debug clean install uninstall dist help
+.PHONY: all clean run run-xor run-circle

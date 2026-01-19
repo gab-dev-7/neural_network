@@ -42,6 +42,24 @@ int main(int argc, char* argv[]) {
     NeuralNetwork* nn = create_network(2, config.hidden_size, 1);
     nn->momentum = config.momentum; // Set momentum from config
 
+    // Gradient checking (if enabled)
+    if (config.gradient_check) {
+        printf("\n=== Running Gradient Check ===\n");
+        printf("Testing with sample 0: input [0, 0], target [0]\n");
+        double max_diff = gradient_check(nn, inputs_raw[0], targets_raw[0], 1e-4);
+
+        printf("\nTesting with sample 1: input [0, 1], target [1]\n");
+        max_diff = gradient_check(nn, inputs_raw[1], targets_raw[1], 1e-4);
+
+        if (max_diff < 1e-7) {
+            printf("\n✓ All gradient checks passed! Backpropagation is correct.\n");
+        } else {
+            printf("\n✗ Gradient checks failed! There's an issue with backpropagation.\n");
+            printf("Continuing training anyway...\n");
+        }
+        printf("\n");
+    }
+
     // train
     if (config.verbose)
         printf("starting training...\n");
